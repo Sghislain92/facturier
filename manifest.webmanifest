@@ -1,0 +1,38 @@
+{
+  "name": "Le Facturier — Websoft Enterprise",
+  "short_name": "Le Facturier",
+  "description": "Créez, gérez et exportez vos factures et factures pro forma Websoft Enterprise Digital Engineering. Toutes les données restent stockées localement sur votre appareil.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7fb",
+  "theme_color": "#123b85",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "finance"],
+  "icons": [
+    { "src": "/manus-storage/logo_57078cae.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/manus-storage/logo_57078cae.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/manus-storage/logo_57078cae.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/manus-storage/logo_57078cae.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nouvelle facture",
+      "short_name": "Créer",
+      "description": "Créer une nouvelle facture",
+      "url": "/?page=create",
+      "icons": [{ "src": "/manus-storage/logo_57078cae.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Mes factures",
+      "short_name": "Factures",
+      "description": "Voir la liste des factures",
+      "url": "/?page=invoices",
+      "icons": [{ "src": "/manus-storage/logo_57078cae.png", "sizes": "192x192" }]
+    }
+  ]
+}
