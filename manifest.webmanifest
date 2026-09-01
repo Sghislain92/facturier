@@ -14,7 +14,7 @@
   "dir": "ltr",
   "categories": ["business", "productivity", "finance"],
   "icons": [
-    { "src": "/manus-storage/logo_57078cae.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/images/icone.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/manus-storage/logo_57078cae.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/manus-storage/logo_57078cae.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
     { "src": "/manus-storage/logo_57078cae.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
