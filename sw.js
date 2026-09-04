@@ -3,11 +3,13 @@
 // pour les ressources externes (polices, icônes, librairies CDN), afin de permettre
 // une utilisation hors-ligne après un premier chargement.
 
-const CACHE_VERSION = 'le-facturier-v4';
+const CACHE_VERSION = 'le-facturier-v5';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
+  '/images/logo.png',
+  '/images/code-icon.png',
   '/images/icone.png'
 ];
 
@@ -15,32 +17,54 @@ const APP_SHELL = [
 const CDN_RESOURCES = [
   // Tailwind CSS
   'https://cdn.tailwindcss.com',
+  'https://cdn.tailwindcss.com/3.4.1',
+  
   // Lucide icons
   'https://unpkg.com/lucide@latest',
+  'https://unpkg.com/lucide@latest/dist/umd/lucide.js',
   'https://unpkg.com/lucide@latest/dist/umd/lucide.min.js',
-  // SweetAlert2
-  'https://cdn.jsdelivr.net/npm/sweetalert2@11',
-  'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js',
-  'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css',
-  // html2pdf
-  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
-  // Google Fonts
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap',
+  
+  // Google Fonts - Jost (utilisée dans le HTML)
   'https://fonts.googleapis.com',
   'https://fonts.gstatic.com',
-  // Font files (Inter)
+  'https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap',
+  
+  // Font files Jost
+  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVBNI0.woff2',
+  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVhNI0.woff2',
+  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVNNI0.woff2',
+  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVTNI0.woff2',
+  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVCNI0.woff2',
+  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVENI0.woff2',
+  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVPNI0.woff2',
+  
+  // Google Fonts - Inter (pour compatibilité)
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap',
+  
+  // Font files Inter (fallback)
   'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2',
   'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7SUc.woff2',
   'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2pL7SUc.woff2',
   'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2',
   'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa0ZL7SUc.woff2',
+  
   // Plus Jakarta Sans
   'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yygg_w.woff2',
   'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko40yygg_w.woff2',
   'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko50yygg_w.woff2',
   'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko30yygg_w.woff2',
-  // Lucide sprite
+  
+  // SweetAlert2
+  'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+  'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js',
+  'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css',
+  
+  // html2pdf
+  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+  
+  // Lucide sprite et maps
   'https://unpkg.com/lucide@latest/dist/umd/lucide.min.js.map',
+  
   // html2pdf dependencies
   'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js.map'
 ];
@@ -55,9 +79,9 @@ self.addEventListener('install', (event) => {
       // On essaie de mettre en cache toutes les ressources
       // En cas d'échec pour certaines, on continue pour ne pas bloquer l'installation
       const promises = ALL_RESOURCES.map((url) => {
-        return cache.add(url).catch(() => {
+        return cache.add(url).catch((error) => {
           // Ignorer les erreurs pour les ressources qui ne peuvent pas être mises en cache
-          console.log('⚠️ Impossible de mettre en cache:', url);
+          console.log('⚠️ Impossible de mettre en cache:', url, error);
         });
       });
       return Promise.allSettled(promises);
@@ -98,12 +122,15 @@ self.addEventListener('fetch', (event) => {
   const isSameOrigin = url.origin === self.location.origin;
   const isCDN = CDN_RESOURCES.some(cdnUrl => request.url.includes(cdnUrl.substring(0, 30)));
 
+  // Pour les requêtes CSS de Google Fonts, on intercepte spécifiquement
+  const isGoogleFontsCSS = request.url.includes('fonts.googleapis.com/css');
+  const isGoogleFontsFont = request.url.includes('fonts.gstatic.com');
+
   event.respondWith(
     caches.match(request).then((cached) => {
-      // Si on a une réponse en cache et que c'est une image ou une police,
-      // on la retourne immédiatement puis on met à jour en arrière-plan
-      if (cached && (isImage || isCDN)) {
-        // Mise à jour en arrière-plan pour les images et ressources CDN
+      // Si on a une réponse en cache et que c'est une ressource statique
+      if (cached && (isImage || isCDN || isGoogleFontsCSS || isGoogleFontsFont)) {
+        // Mise à jour en arrière-plan pour les ressources statiques
         fetch(request)
           .then((response) => {
             if (response && response.ok) {
@@ -122,7 +149,7 @@ self.addEventListener('fetch', (event) => {
             const clone = response.clone();
             caches.open(CACHE_VERSION).then((cache) => {
               // On met en cache seulement si c'est une ressource importante
-              if (isSameOrigin || isCDN || isImage) {
+              if (isSameOrigin || isCDN || isImage || isGoogleFontsCSS || isGoogleFontsFont) {
                 cache.put(request, clone);
               }
             });
@@ -132,6 +159,20 @@ self.addEventListener('fetch', (event) => {
         .catch((error) => {
           // En cas d'erreur réseau, on retourne la version en cache si disponible
           if (cached) return cached;
+          
+          // Si c'est une requête de police Google Fonts, on retourne une police de fallback
+          if (isGoogleFontsCSS || isGoogleFontsFont) {
+            // On essaie de retourner une police système en fallback
+            return new Response('', {
+              status: 200,
+              statusText: 'OK',
+              headers: {
+                'Content-Type': 'text/css',
+                'Cache-Control': 'public, max-age=31536000'
+              }
+            });
+          }
+          
           // Sinon, on essaie de retourner une page d'erreur
           if (request.destination === 'document') {
             return caches.match('/index.html').catch(() => {
