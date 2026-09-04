@@ -4,14 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#123b85">
-<meta name="description" content="Le Facturier — factures Websoft Enterprise, stockage local.">
+<meta name="description" content="Le Facturier — application de gestion de factures, factures pro forma et bordereaux d’encaissement pour Websoft Enterprise Digital Engineering.">
+<meta name="keywords" content="facturation, facture, facture pro forma, bordereau d’encaissement, Websoft Enterprise, Bénin, gestion d’entreprise, PWA">
+<meta name="author" content="Websoft Enterprise Digital Engineering">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="https://www.websoftenterprise.com/le-facturier/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Le Facturier — Websoft Enterprise Digital Engineering">
+<meta property="og:description" content="Générez, suivez et exportez vos factures, factures pro forma et bordereaux d’encaissement. Application interne Websoft Enterprise.">
+<meta property="og:image" content="https://www.websoftenterprise.com/images/logo.png">
+<meta property="og:url" content="https://www.websoftenterprise.com/le-facturier/">
+<meta property="og:site_name" content="Le Facturier">
+<meta property="og:locale" content="fr_FR">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Le Facturier — Websoft Enterprise Digital Engineering">
+<meta name="twitter:description" content="Générez, suivez et exportez vos factures, factures pro forma et bordereaux d’encaissement.">
+<meta name="twitter:image" content="https://www.websoftenterprise.com/images/logo.png">
+
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/images/icone.png">
 <link rel="apple-touch-icon" href="/images/icone.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Le Facturier">
-<title>Le Facturier</title>
+<title>Le Facturier — Websoft Enterprise Digital Engineering</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -307,6 +327,31 @@ h1,h2,h3,.display{font-family:'Plus Jakarta Sans',Inter,sans-serif}
 <script>
 (function(){
 'use strict';
+/* ---------- Filet de sécurité global : plus jamais d'écran blanc silencieux ---------- */
+let fatalErrorShown=false;
+function showFatalError(err){
+  if(fatalErrorShown)return;fatalErrorShown=true;
+  try{
+    const box=document.createElement('div');
+    box.id='fatal-error-box';
+    box.style.cssText='position:fixed;inset:0;z-index:99999;background:#f4f7fb;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Inter,Arial,sans-serif;';
+    const msg=String((err&&err.message)||err||'Erreur inconnue');
+    const stack=String((err&&err.stack)||'');
+    box.innerHTML='<div style="max-width:440px;width:100%;background:#fff;border-radius:20px;padding:28px;box-shadow:0 20px 50px rgba(16,32,61,.18);text-align:center">'
+      +'<div style="width:52px;height:52px;border-radius:50%;background:#fee2e2;color:#c33;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;font-weight:800">!</div>'
+      +'<h2 style="font-weight:800;font-size:18px;margin:0 0 8px;color:#10203d">Un problème empêche l’application de démarrer</h2>'
+      +'<p style="font-size:13px;color:#748096;margin:0 0 18px;line-height:1.55">Essayez de recharger la page. Si cela persiste, videz entièrement le cache du site depuis les réglages de votre navigateur (pas seulement les données de stockage local) — une ancienne version mise en cache peut bloquer le démarrage.</p>'
+      +'<button id="fatal-reload" style="width:100%;height:44px;border-radius:11px;background:#123b85;color:#fff;font-weight:800;border:0;margin-bottom:10px">Recharger la page</button>'
+      +'<button id="fatal-clear" style="width:100%;height:44px;border-radius:11px;background:#fff;color:#c33;font-weight:800;border:1px solid #f3c9c9">Effacer les données locales et recharger</button>'
+      +'<details style="text-align:left;margin-top:14px;font-size:11px;color:#94a0b4"><summary>Détails techniques</summary><pre style="white-space:pre-wrap;word-break:break-word;margin-top:6px">'+msg.replace(/</g,'&lt;')+(stack?'\n\n'+stack.replace(/</g,'&lt;'):'')+'</pre></details>'
+      +'</div>';
+    document.body.appendChild(box);
+    document.getElementById('fatal-reload')?.addEventListener('click',()=>location.reload());
+    document.getElementById('fatal-clear')?.addEventListener('click',()=>{try{localStorage.clear()}catch(e){}try{sessionStorage.clear()}catch(e){}if(window.caches&&caches.keys)caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).finally(()=>location.reload());else location.reload()});
+  }catch(e){/* dernier recours : rien de plus possible */}
+}
+window.addEventListener('error',e=>showFatalError(e.error||e.message));
+window.addEventListener('unhandledrejection',e=>showFatalError(e.reason));
 /* ---------- Authentification & verrouillage ---------- */
 const AUTH_EMAIL='ssii.wede@gmail.com';
 const AUTH_HASH='39c260d94918f761ee3bd585a207885d50aa3d6ea7ea070af25b0ac666fecfc';
@@ -475,15 +520,4 @@ function resetData(){confirmBox('Réinitialiser les données ?').then(r=>{if(r.i
 function pdfFilenameFor(ref,client){return `${(ref||'document').replace(/[^a-z0-9]/gi,'_')}_${(client||'client').replace(/[^a-z0-9]/gi,'_')}.pdf`}
 function pdfFilename(x){return pdfFilenameFor(x.ref,x.client)}
 function waitForImages(el){const imgs=[...el.querySelectorAll('img')];return Promise.all(imgs.map(img=>{if(img.complete&&img.naturalWidth>0)return Promise.resolve();return new Promise(res=>{img.onload=res;img.onerror=res;setTimeout(res,3000)})}))}
-function makePdfFromMarkup(markupHtml,filename){const holder=document.createElement('div');holder.style.position='absolute';holder.style.left='0';holder.style.top='0';holder.style.opacity='1';holder.style.pointerEvents='none';holder.style.zIndex='-1';holder.style.width='210mm';holder.style.height='297mm';holder.innerHTML=markupHtml;document.body.appendChild(holder);if(Icons.createIcons)Icons.createIcons({root:holder});if(!window.html2pdf){notify('Bibliothèque PDF indisponible : impression du navigateur utilisée','warning');window.print();holder.remove();return Promise.resolve(null)}const paperEl=holder.firstElementChild;paperEl.style.margin='0';paperEl.style.position='absolute';paperEl.style.left='0';paperEl.style.top='0';paperEl.style.transform='none';const rect=paperEl.getBoundingClientRect();const opts={margin:0,filename,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#fff',width:Math.round(rect.width),height:Math.round(rect.height),windowWidth:Math.round(rect.width),x:0,y:0,scrollX:0,scrollY:0},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['avoid-all'],avoid:['.invoice-paper','.invoice-content','.invoice-brand-foot']}};return waitForImages(holder).then(()=>new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res)))).then(()=>html2pdf().set(opts).from(paperEl).toPdf().get('pdf')).then(pdf=>{while(pdf.internal.getNumberOfPages()>1)pdf.deletePage(pdf.internal.getNumberOfPages());const blob=pdf.output('blob');holder.remove();return blob}).catch(err=>{holder.remove();console.error('PDF export error',err);throw err})}
-function exportPdfData(x){makePdfFromMarkup(invoiceMarkup(x),pdfFilename(x)).then(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=pdfFilename(x);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);notify('PDF téléchargé')}).catch(()=>notify('Impossible de générer le PDF','error'))}
-function exportSlipPdfData(sVal){makePdfFromMarkup(bordereauMarkup(sVal),pdfFilenameFor(sVal.slipRef,sVal.client)).then(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=pdfFilenameFor(sVal.slipRef,sVal.client);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);notify('PDF téléchargé')}).catch(()=>notify('Impossible de générer le PDF','error'))}
-function exportPdf(id){const x=state.invoices.find(i=>i.id===id);if(x)exportPdfData(x)}
-function exportSlipPdf(id){const sVal=state.slips.find(s=>s.id===id);if(sVal)exportSlipPdfData(sVal)}
-function sharePdfGeneric(markupHtml,filename,shareTitle,shareText){return makePdfFromMarkup(markupHtml,filename).then(blob=>{if(!blob)return;const file=new File([blob],filename,{type:'application/pdf'});if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]})))return navigator.share({title:shareTitle,text:shareText,files:[file]}).then(()=>notify('PDF partagé'));const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);notify('PDF téléchargé')}).catch(()=>notify('Partage indisponible','error'))}
-function sharePdf(id){const x=state.invoices.find(i=>i.id===id);if(!x)return;sharePdfGeneric(invoiceMarkup(x),pdfFilename(x),x.ref,`Facture ${x.ref} — ${x.client}`)}
-function shareSlipPdf(id){const sVal=state.slips.find(s=>s.id===id);if(!sVal)return;sharePdfGeneric(bordereauMarkup(sVal),pdfFilenameFor(sVal.slipRef,sVal.client),sVal.slipRef,`Bordereau ${sVal.slipRef} — ${sVal.client}`)}
-function offerPdf(id){const x=state.invoices.find(i=>i.id===id);if(!x)return;if(window.Swal&&typeof Swal.fire==='function'){Swal.fire({title:'Facture enregistrée',text:'Souhaitez-vous exporter ou partager le PDF maintenant ?',icon:'success',showDenyButton:true,showCancelButton:true,confirmButtonText:'Exporter le PDF',denyButtonText:'Partager le PDF',cancelButtonText:'Plus tard',confirmButtonColor:'#123b85',denyButtonColor:'#168fd0'}).then(r=>{if(r.isConfirmed)exportPdf(id);else if(r.isDenied)sharePdf(id)})}else if(window.confirm('Exporter le PDF maintenant ?'))exportPdf(id)}
-function offerSlipPdf(id){const sVal=state.slips.find(s=>s.id===id);if(!sVal)return;if(window.Swal&&typeof Swal.fire==='function'){Swal.fire({title:'Bordereau enregistré',text:'Souhaitez-vous exporter ou partager le PDF maintenant ?',icon:'success',showDenyButton:true,showCancelButton:true,confirmButtonText:'Exporter le PDF',denyButtonText:'Partager le PDF',cancelButtonText:'Plus tard',confirmButtonColor:'#123b85',denyButtonColor:'#168fd0'}).then(r=>{if(r.isConfirmed)exportSlipPdf(id);else if(r.isDenied)shareSlipPdf(id)})}else if(window.confirm('Exporter le PDF maintenant ?'))exportSlipPdf(id)}
-
-/* ---------- Type select auto-ref ---------
+function makePdfFromMarkup(markupHtml,filename){const holder=document.createElement('div');holder.style.position='absolute';holder.style.left='0';holder.style.top='0';holder.style.opacity='1';holder.style.pointerEvents='none';holder.style.zIndex='-1';holder.style.width='210mm';holder.style.height='297mm';holder.innerHTML=markupHtml;document.body.appendChild(holder);if(Icons.createIcons)Icons.createIcons({root:holder});if(!window.html2pdf){notify('Bibliothèque PDF indisponible : impression du navigateur utilisée','warning');window.print();holder.remove();return Promise.resolve(null)}const paperEl=holder.
