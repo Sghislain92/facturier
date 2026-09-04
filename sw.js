@@ -1,9 +1,22 @@
 // Service worker — Le Facturier (Websoft Enterprise)
-// Stratégie : "stale-while-revalidate" pour l'app locale, "cache falling back to network"
-// pour les ressources externes (polices, icônes, librairies CDN), afin de permettre
-// une utilisation hors-ligne après un premier chargement.
+//
+// Stratégie :
+//  - Pages HTML (navigation) : "network-first" — on essaie TOUJOURS le réseau
+//    en premier pour garantir la dernière version de l'app. Le cache ne sert
+//    que de secours si l'utilisateur est hors-ligne. C'est ce qui évite qu'un
+//    utilisateur reste bloqué sur une ancienne version périmée après une
+//    correction ou une mise à jour.
+//  - Ressources statiques (Tailwind, lucide, sweetalert2, html2pdf, polices,
+//    images) : pré-mises en cache à l'installation (pour un premier usage
+//    hors-ligne garanti dès l'installation de l'app) PUIS tenues à jour en
+//    tâche de fond à chaque visite ("stale-while-revalidate").
+//
+// ⚠️ Incrémentez CACHE_VERSION à chaque déploiement important : cela force le
+// nettoyage des anciens caches et le re-téléchargement des ressources.
 
-const CACHE_VERSION = 'le-facturier-v5';
+const CACHE_VERSION = 'le-facturier-v7';
+
+// Ressources de la même origine (mêmes règles CORS que le site).
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -13,79 +26,42 @@ const APP_SHELL = [
   '/images/icone.png'
 ];
 
-// Ressources CDN essentielles pour le fonctionnement hors ligne
-const CDN_RESOURCES = [
-  // Tailwind CSS
+// Ressources tierces (CDN) indispensables au bon fonctionnement de l'UI hors-ligne :
+// Tailwind CSS (mise en forme), lucide (icônes), sweetalert2 (boîtes de dialogue),
+// html2pdf (export PDF) et les polices utilisées dans le papier à en-tête.
+// On ne cible que les points d'entrée : les sous-ressources qu'ils chargent
+// eux-mêmes (woff2, sourcemaps...) sont interceptées et mises en cache au fil
+// de l'eau par le gestionnaire "fetch" ci-dessous dès le premier chargement
+// en ligne — inutile (et fragile) de coder en dur des URLs de polices qui
+// changent au fil des mises à jour de Google Fonts.
+const CDN_ENTRYPOINTS = [
   'https://cdn.tailwindcss.com',
-  'https://cdn.tailwindcss.com/3.4.1',
-  
-  // Lucide icons
   'https://unpkg.com/lucide@latest',
-  'https://unpkg.com/lucide@latest/dist/umd/lucide.js',
-  'https://unpkg.com/lucide@latest/dist/umd/lucide.min.js',
-  
-  // Google Fonts - Jost (utilisée dans le HTML)
-  'https://fonts.googleapis.com',
-  'https://fonts.gstatic.com',
-  'https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap',
-  
-  // Font files Jost
-  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVBNI0.woff2',
-  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVhNI0.woff2',
-  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVNNI0.woff2',
-  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVTNI0.woff2',
-  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVCNI0.woff2',
-  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVENI0.woff2',
-  'https://fonts.gstatic.com/s/jost/v15/92zPtBhPNqw79Ij1E865zBUv7myjJTVPNI0.woff2',
-  
-  // Google Fonts - Inter (pour compatibilité)
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap',
-  
-  // Font files Inter (fallback)
-  'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2JL7SUc.woff2',
-  'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7SUc.woff2',
-  'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa2pL7SUc.woff2',
-  'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2',
-  'https://fonts.gstatic.com/s/inter/v18/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa0ZL7SUc.woff2',
-  
-  // Plus Jakarta Sans
-  'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko20yygg_w.woff2',
-  'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko40yygg_w.woff2',
-  'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko50yygg_w.woff2',
-  'https://fonts.gstatic.com/s/plusjakartasans/v8/LDIoaomQNQcsA88c7O9yZ4KMCoOg4Ko30yygg_w.woff2',
-  
-  // SweetAlert2
   'https://cdn.jsdelivr.net/npm/sweetalert2@11',
-  'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js',
-  'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css',
-  
-  // html2pdf
   'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
-  
-  // Lucide sprite et maps
-  'https://unpkg.com/lucide@latest/dist/umd/lucide.min.js.map',
-  
-  // html2pdf dependencies
-  'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js.map'
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Jost:wght@400;500;600;700&display=swap'
 ];
 
-// Toutes les ressources à mettre en cache pour une utilisation hors ligne
-const ALL_RESOURCES = [...APP_SHELL, ...CDN_RESOURCES];
+// Beaucoup de ces ressources CDN ne renvoient pas d'en-têtes CORS pour un
+// usage en balise <script>/<link> classique : la réponse est alors "opaque"
+// (statut illisible par le navigateur). On force le mode no-cors pour éviter
+// tout rejet, et on met en cache la réponse même opaque — c'est le seul moyen
+// de garantir Tailwind/lucide/sweetalert2/html2pdf disponibles hors-ligne.
+function cacheNoCors(cache, url) {
+  return fetch(url, { mode: 'no-cors' })
+    .then((response) => cache.put(url, response))
+    .catch((error) => console.log('⚠️ Impossible de mettre en cache:', url, error));
+}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => {
-      // On essaie de mettre en cache toutes les ressources
-      // En cas d'échec pour certaines, on continue pour ne pas bloquer l'installation
-      const promises = ALL_RESOURCES.map((url) => {
-        return cache.add(url).catch((error) => {
-          // Ignorer les erreurs pour les ressources qui ne peuvent pas être mises en cache
-          console.log('⚠️ Impossible de mettre en cache:', url, error);
-        });
-      });
-      return Promise.allSettled(promises);
-    })
+    caches.open(CACHE_VERSION).then((cache) =>
+      Promise.allSettled([
+        ...APP_SHELL.map((url) => cache.add(url).catch((error) => console.log('⚠️ Impossible de mettre en cache:', url, error))),
+        ...CDN_ENTRYPOINTS.map((url) => cacheNoCors(cache, url))
+      ])
+    )
   );
 });
 
@@ -93,124 +69,76 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))
-        )
-      )
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
 
-// Stratégie de mise en cache intelligente avec fallback
+function isNavigationRequest(request) {
+  return request.mode === 'navigate' || request.destination === 'document';
+}
+
+// Une réponse est utilisable pour la mise en cache si elle est soit un succès
+// classique (response.ok), soit une réponse opaque cross-origin (statut non
+// lisible mais valide) — sans ce deuxième cas, les ressources CDN chargées en
+// no-cors (Tailwind, lucide, sweetalert2, html2pdf, polices) ne seraient
+// jamais mises en cache.
+function isCacheable(response) {
+  return response && (response.ok || response.type === 'opaque');
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  
-  // Ignorer les requêtes non-GET
+
+  // On n'intercepte que les requêtes GET.
   if (request.method !== 'GET') return;
-  
-  // Ignorer les requêtes vers les APIs analytics ou tracking
+
   const url = new URL(request.url);
-  if (url.hostname.includes('google-analytics') || 
-      url.hostname.includes('googletagmanager')) return;
+  if (url.hostname.includes('google-analytics') || url.hostname.includes('googletagmanager')) return;
 
-  // Pour les requêtes vers les images et polices, on utilise une stratégie différente
-  const isImage = request.destination === 'image' || 
-                  request.destination === 'font' ||
-                  url.pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$/i);
-  
-  const isSameOrigin = url.origin === self.location.origin;
-  const isCDN = CDN_RESOURCES.some(cdnUrl => request.url.includes(cdnUrl.substring(0, 30)));
-
-  // Pour les requêtes CSS de Google Fonts, on intercepte spécifiquement
-  const isGoogleFontsCSS = request.url.includes('fonts.googleapis.com/css');
-  const isGoogleFontsFont = request.url.includes('fonts.gstatic.com');
-
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      // Si on a une réponse en cache et que c'est une ressource statique
-      if (cached && (isImage || isCDN || isGoogleFontsCSS || isGoogleFontsFont)) {
-        // Mise à jour en arrière-plan pour les ressources statiques
-        fetch(request)
-          .then((response) => {
-            if (response && response.ok) {
-              const clone = response.clone();
-              caches.open(CACHE_VERSION).then((cache) => cache.put(request, clone));
-            }
-          })
-          .catch(() => {});
-        return cached;
-      }
-
-      // Pour les autres ressources, stratégie stale-while-revalidate
-      const networkPromise = fetch(request)
+  // 1) Pages HTML : network-first, avec repli sur le cache si hors-ligne.
+  if (isNavigationRequest(request)) {
+    event.respondWith(
+      fetch(request)
         .then((response) => {
-          if (response && response.ok) {
+          if (isCacheable(response)) {
             const clone = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => {
-              // On met en cache seulement si c'est une ressource importante
-              if (isSameOrigin || isCDN || isImage || isGoogleFontsCSS || isGoogleFontsFont) {
-                cache.put(request, clone);
-              }
-            });
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, clone));
           }
           return response;
         })
-        .catch((error) => {
-          // En cas d'erreur réseau, on retourne la version en cache si disponible
-          if (cached) return cached;
-          
-          // Si c'est une requête de police Google Fonts, on retourne une police de fallback
-          if (isGoogleFontsCSS || isGoogleFontsFont) {
-            // On essaie de retourner une police système en fallback
-            return new Response('', {
-              status: 200,
-              statusText: 'OK',
-              headers: {
-                'Content-Type': 'text/css',
-                'Cache-Control': 'public, max-age=31536000'
-              }
-            });
-          }
-          
-          // Sinon, on essaie de retourner une page d'erreur
-          if (request.destination === 'document') {
-            return caches.match('/index.html').catch(() => {
-              return new Response('Page non disponible hors ligne', {
-                status: 503,
-                statusText: 'Service Unavailable'
-              });
-            });
-          }
-          throw error;
-        });
+        .catch(() =>
+          caches.match(request).then((cached) => cached || caches.match('/index.html'))
+        )
+    );
+    return;
+  }
 
-      return cached || networkPromise;
+  // 2) Ressources statiques (images, polices, scripts CDN) : on sert le cache
+  // immédiatement s'il existe (rapide, et fonctionne hors-ligne), tout en
+  // rafraîchissant la version en cache en arrière-plan pour la prochaine fois.
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      const networkFetch = fetch(request)
+        .then((response) => {
+          if (isCacheable(response)) {
+            const clone = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => cached);
+      return cached || networkFetch;
     })
   );
 });
 
-// Préchargement des ressources essentielles lors du premier chargement
+// Permet à la page de forcer l'activation immédiate d'une nouvelle version.
 self.addEventListener('message', (event) => {
-  if (event.data === 'skipWaiting') {
-    self.skipWaiting();
-  } else if (event.data === 'preload') {
-    // Préchargement des ressources CDN en arrière-plan
-    caches.open(CACHE_VERSION).then((cache) => {
-      CDN_RESOURCES.forEach((url) => {
-        fetch(url, { mode: 'no-cors' })
-          .then((response) => {
-            if (response && response.ok) {
-              cache.put(url, response);
-            }
-          })
-          .catch(() => {});
-      });
-    });
-  }
+  if (event.data === 'skipWaiting') self.skipWaiting();
 });
 
-// Gestion des notifications push
+// Notifications push (optionnel, prêt si une infrastructure d'envoi est ajoutée plus tard).
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
   const options = {
@@ -218,20 +146,12 @@ self.addEventListener('push', (event) => {
     icon: '/images/icone.png',
     badge: '/images/icone.png',
     vibrate: [200, 100, 200],
-    data: {
-      url: data.url || '/'
-    }
+    data: { url: data.url || '/' }
   };
-  
-  event.waitUntil(
-    self.registration.showNotification('📄 Le Facturier', options)
-  );
+  event.waitUntil(self.registration.showNotification('📄 Le Facturier', options));
 });
 
-// Gestion du clic sur notification
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(
-    clients.openWindow(event.notification.data.url || '/')
-  );
+  event.waitUntil(clients.openWindow(event.notification.data.url || '/'));
 });
