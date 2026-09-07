@@ -14,7 +14,7 @@
 // ⚠️ Incrémentez CACHE_VERSION à chaque déploiement important : cela force le
 // nettoyage des anciens caches et le re-téléchargement des ressources.
 
-const CACHE_VERSION = 'le-facturier-v7';
+const CACHE_VERSION = 'le-facturier-v8';
 
 // Ressources de la même origine (mêmes règles CORS que le site).
 const APP_SHELL = [
@@ -39,7 +39,7 @@ const CDN_ENTRYPOINTS = [
   'https://unpkg.com/lucide@latest',
   'https://cdn.jsdelivr.net/npm/sweetalert2@11',
   'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Jost:wght@400;500;600;700&display=swap'
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Jost:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap'
 ];
 
 // Beaucoup de ces ressources CDN ne renvoient pas d'en-têtes CORS pour un
