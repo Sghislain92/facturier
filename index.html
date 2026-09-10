@@ -621,7 +621,7 @@ function makePdfFromMarkup(markupHtml,filename){
   overlay.innerHTML='<div class="pdf-export-loading"><span class="pdf-export-spinner"></span> Génération du PDF en cours…</div>';
   const holder=document.createElement('div');
   holder.className='pdf-export-holder';
-  holder.style.cssText='position:fixed;left:0;top:0;width:210mm;height:auto;min-height:0;margin:0;padding:0;opacity:1;pointer-events:none;background:#fff;';
+  holder.style.cssText='position:relative;width:210mm;min-height:297mm;margin:0 auto;opacity:1;pointer-events:none;background:#fff;';
   holder.innerHTML=markupHtml;
   const prevBodyOverflow=document.body.style.overflow;
   document.body.style.overflow='hidden';
