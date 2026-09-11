@@ -615,39 +615,7 @@ function resetData(){confirmBox('Réinitialiser les données ?').then(r=>{if(r.i
 function pdfFilenameFor(ref,client){return `${(ref||'document').replace(/[^a-z0-9]/gi,'_')}_${(client||'client').replace(/[^a-z0-9]/gi,'_')}.pdf`}
 function pdfFilename(x){return pdfFilenameFor(x.ref,x.client)}
 function waitForImages(el){const imgs=[...el.querySelectorAll('img')];return Promise.all(imgs.map(img=>{if(img.complete&&img.naturalWidth>0)return Promise.resolve();return new Promise(res=>{img.onload=res;img.onerror=res;setTimeout(res,3000)})}))}
-function makePdfFromMarkup(markupHtml,filename){
-  const overlay=document.createElement('div');
-  overlay.className='pdf-export-overlay';
-  overlay.innerHTML='<div class="pdf-export-loading"><span class="pdf-export-spinner"></span> Génération du PDF en cours…</div>';
-  const holder=document.createElement('div');
-  holder.className='pdf-export-holder';
-  holder.style.cssText='position:relative;width:210mm;min-height:297mm;margin:0 auto;opacity:1;pointer-events:none;background:#fff;';
-  holder.innerHTML=markupHtml;
-  const prevBodyOverflow=document.body.style.overflow;
-  document.body.style.overflow='hidden';
-  overlay.appendChild(holder);
-  document.body.appendChild(overlay);
-  const cleanup=()=>{overlay.remove();document.body.style.overflow=prevBodyOverflow};
-  if(Icons.createIcons)Icons.createIcons({root:overlay});
-  logError('Diagnostic export PDF : démarrage',JSON.stringify({filename,markupLength:markupHtml.length,html2pdfLoaded:typeof window.html2pdf==='function'}),'pdf-diagnostic');
-  if(typeof window.html2pdf!=='function'){
-    cleanup();
-    logError('Export PDF : bibliothèque html2pdf indisponible — aucun fallback vers l’impression de l’interface','Le script CDN html2pdf.js n’est pas chargé','makePdfFromMarkup');
-    notify('Bibliothèque PDF indisponible : rechargez la page puis réessayez','error');
-    return Promise.reject(new Error('Bibliothèque html2pdf indisponible'));
-  }
-  const pages=[...holder.querySelectorAll('.invoice-paper')];
-  if(!pages.length){cleanup();logError('Export PDF : aucune page générée (markup vide)',markupHtml.slice(0,300),'makePdfFromMarkup');return Promise.reject(new Error('Aucune page à exporter'))}
-  pages.forEach(p=>{p.style.margin='0';p.style.boxShadow='none'});
-  const rect=pages[0].getBoundingClientRect();
-  if(!rect.width||!rect.height){cleanup();logError('Export PDF : dimensions de page nulles',JSON.stringify({width:rect.width,height:rect.height,pageCount:pages.length}),'makePdfFromMarkup');return Promise.reject(new Error('Dimensions de page invalides'))}
-  const opts={margin:0,filename,image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:true,backgroundColor:'#fff',width:Math.ceil(rect.width),windowWidth:Math.ceil(rect.width)},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:['css'],before:'.invoice-paper:not(:first-of-type)'}};
-  return waitForImages(holder)
-    .then(()=>new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res))))
-    .then(()=>window.html2pdf().set(opts).from(holder).toPdf().get('pdf'))
-    .then(pdf=>{const blob=pdf.output('blob');logError('Diagnostic export PDF : terminé',JSON.stringify({blobSizeOctets:blob.size,pageCountPdf:pdf.internal?.getNumberOfPages?.()||'?'}),'pdf-diagnostic');cleanup();return blob})
-    .catch(err=>{cleanup();logError('Erreur d’export PDF : '+(err&&err.message||err),err&&err.stack||String(err),'makePdfFromMarkup');console.error('PDF export error',err);throw err});
-}
+function makePdfFromMarkup(markupHtml,filename){const overlay=document.createElement('div');overlay.className='pdf-export-overlay';overlay.innerHTML='<div class="pdf-export-loading"><span class="pdf-export-spinner"></span> Génération du PDF en cours…</div>';const holder=document.createElement('div');holder.style.background='#fff';holder.innerHTML=markupHtml;overlay.appendChild(holder);const prevBodyOverflow=document.body.style.overflow;document.body.style.overflow='hidden';document.body.appendChild(overlay);const cleanup=()=>{overlay.remove();document.body.style.overflow=prevBodyOverflow};if(Icons.createIcons)Icons.createIcons({root:overlay});logError('Diagnostic export PDF : démarrage',JSON.stringify({filename,markupLength:markupHtml.length,html2pdfLoaded:!!window.html2pdf}),'pdf-diagnostic');if(!window.html2pdf){cleanup();logError('Export PDF : bibliothèque html2pdf non chargée (réseau/CDN bloqué ?)','','pdf-diagnostic');notify('Bibliothèque PDF indisponible : impression du navigateur utilisée','warning');window.print();return Promise.resolve(null)}const pages=[...holder.querySelectorAll('.invoice-paper')];if(!pages.length){cleanup();logError('Export PDF : aucune page générée (markup vide)',markupHtml.slice(0,500),'makePdfFromMarkup');return Promise.reject(new Error('Aucune page à exporter'))}pages.forEach(p=>{p.style.margin='0 auto 4mm';p.style.boxShadow='none'});const firstRect=pages[0].getBoundingClientRect();logError('Diagnostic export PDF : mesures',JSON.stringify({overlayWidth:overlay.getBoundingClientRect().width,pageWidth:firstRect.width,pageHeight:firstRect.height,pageCount:pages.length}),'pdf-diagnostic');if(!firstRect.width||!firstRect.height){cleanup();logError('Export PDF : dimensions de page nulles',JSON.stringify({width:firstRect.width,height:firstRect.height,pageCount:pages.length}),'makePdfFromMarkup');return Promise.reject(new Error('Dimensions de page invalides'))}const canvasOpts={scale:2,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false};return waitForImages(holder).then(()=>new Promise(res=>requestAnimationFrame(()=>requestAnimationFrame(res)))).then(async()=>{let pdf=null;const pageDiagnostics=[];for(let i=0;i<pages.length;i++){const pageEl=pages[i];if(i===0){pdf=await html2pdf().set({html2canvas:canvasOpts,jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},margin:0,image:{type:'jpeg',quality:.98}}).from(pageEl).toPdf().get('pdf');pageDiagnostics.push({index:0,ok:!!pdf})}else{const canvas=await html2pdf().set({html2canvas:canvasOpts}).from(pageEl).toCanvas().get('canvas');pageDiagnostics.push({index:i,canvasWidth:canvas.width,canvasHeight:canvas.height});const imgData=canvas.toDataURL('image/jpeg',.98);pdf.addPage();pdf.addImage(imgData,'JPEG',0,0,210,297,undefined,'FAST')}}const blob=pdf.output('blob');logError('Diagnostic export PDF : terminé',JSON.stringify({blobSizeOctets:blob.size,pageCountPdf:pdf.internal.getNumberOfPages(),pageCountDom:pages.length,pageDiagnostics}),'pdf-diagnostic');if(blob.size<5000){logError('Export PDF : fichier anormalement petit — probablement vide malgré un export « réussi »',JSON.stringify({blobSizeOctets:blob.size,pageDiagnostics}),'pdf-diagnostic');notify('Le PDF généré semble vide — voir l’onglet Erreurs pour le diagnostic','error')}cleanup();return blob}).catch(err=>{cleanup();logError('Erreur d’export PDF : '+(err&&err.message||err),err&&err.stack||String(err),'makePdfFromMarkup');console.error('PDF export error',err);throw err})}
 function exportPdfData(x){makePdfFromMarkup(invoiceMarkup(x),pdfFilename(x)).then(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=pdfFilename(x);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);notify('PDF téléchargé')}).catch(()=>notify('Impossible de générer le PDF','error'))}
 function exportSlipPdfData(sVal){makePdfFromMarkup(bordereauMarkup(sVal),pdfFilenameFor(sVal.slipRef,sVal.client)).then(blob=>{if(!blob)return;const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=pdfFilenameFor(sVal.slipRef,sVal.client);a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);notify('PDF téléchargé')}).catch(()=>notify('Impossible de générer le PDF','error'))}
 function exportPdf(id){const x=state.invoices.find(i=>i.id===id);if(x)exportPdfData(x)}
