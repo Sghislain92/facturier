@@ -6,15 +6,15 @@
 //    que de secours si l'utilisateur est hors-ligne. C'est ce qui évite qu'un
 //    utilisateur reste bloqué sur une ancienne version périmée après une
 //    correction ou une mise à jour.
-//  - Ressources statiques (Tailwind, lucide, sweetalert2, polices, images) :
-//    pré-mises en cache à l'installation (pour un premier usage hors-ligne
-//    garanti dès l'installation de l'app) PUIS tenues à jour en tâche de
-//    fond à chaque visite ("stale-while-revalidate").
+//  - Ressources statiques (Tailwind, lucide, sweetalert2, jsPDF, polices,
+//    images) : pré-mises en cache à l'installation (pour un premier usage
+//    hors-ligne garanti dès l'installation de l'app) PUIS tenues à jour en
+//    tâche de fond à chaque visite ("stale-while-revalidate").
 //
 // ⚠️ Incrémentez CACHE_VERSION à chaque déploiement important : cela force le
 // nettoyage des anciens caches et le re-téléchargement des ressources.
 
-const CACHE_VERSION = 'le-facturier-v17';
+const CACHE_VERSION = 'le-facturier-v18';
 
 // Ressources de la même origine (mêmes règles CORS que le site).
 const APP_SHELL = [
@@ -27,11 +27,12 @@ const APP_SHELL = [
 ];
 
 // Ressources tierces (CDN) indispensables au bon fonctionnement de l'UI hors-ligne :
-// Tailwind CSS (mise en forme), lucide (icônes), sweetalert2 (boîtes de dialogue)
-// et les polices utilisées dans le papier à en-tête. L'export PDF passe
-// désormais par l'impression native du navigateur (window.print()), donc
-// html2pdf.js n'est plus chargé par l'application et n'a plus à être mis en
-// cache ici.
+// Tailwind CSS (mise en forme), lucide (icônes), sweetalert2 (boîtes de dialogue),
+// jsPDF (conversion des photos de courriers entrants en PDF) et les polices
+// utilisées dans le papier à en-tête. L'export des documents (factures,
+// bordereaux, courriers) passe par l'impression native du navigateur
+// (window.print()), donc aucune bibliothèque supplémentaire n'est requise
+// pour cette partie.
 // On ne cible que les points d'entrée : les sous-ressources qu'ils chargent
 // eux-mêmes (woff2, sourcemaps...) sont interceptées et mises en cache au fil
 // de l'eau par le gestionnaire "fetch" ci-dessous dès le premier chargement
@@ -41,6 +42,7 @@ const CDN_ENTRYPOINTS = [
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/lucide@latest',
   'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Jost:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap'
 ];
 
@@ -48,7 +50,7 @@ const CDN_ENTRYPOINTS = [
 // usage en balise <script>/<link> classique : la réponse est alors "opaque"
 // (statut illisible par le navigateur). On force le mode no-cors pour éviter
 // tout rejet, et on met en cache la réponse même opaque — c'est le seul moyen
-// de garantir Tailwind/lucide/sweetalert2 disponibles hors-ligne.
+// de garantir Tailwind/lucide/sweetalert2/jsPDF disponibles hors-ligne.
 function cacheNoCors(cache, url) {
   return fetch(url, { mode: 'no-cors' })
     .then((response) => cache.put(url, response))
@@ -83,8 +85,8 @@ function isNavigationRequest(request) {
 // Une réponse est utilisable pour la mise en cache si elle est soit un succès
 // classique (response.ok), soit une réponse opaque cross-origin (statut non
 // lisible mais valide) — sans ce deuxième cas, les ressources CDN chargées en
-// no-cors (Tailwind, lucide, sweetalert2, polices) ne seraient jamais mises
-// en cache.
+// no-cors (Tailwind, lucide, sweetalert2, jsPDF, polices) ne seraient jamais
+// mises en cache.
 function isCacheable(response) {
   return response && (response.ok || response.type === 'opaque');
 }
