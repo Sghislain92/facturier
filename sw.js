@@ -14,7 +14,7 @@
 // ⚠️ Incrémentez CACHE_VERSION à chaque déploiement important : cela force le
 // nettoyage des anciens caches et le re-téléchargement des ressources.
 
-const CACHE_VERSION = 'le-facturier-v14';
+const CACHE_VERSION = 'le-facturier-v15';
 
 // Ressources de la même origine (mêmes règles CORS que le site).
 const APP_SHELL = [
